@@ -1,0 +1,38 @@
+{
+  "name": "gitignore-tools",
+  "version": "1.0.0",
+  "description": "Tools for managing .gitignore files in monorepos with AI development support",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "test": "vitest",
+    "test:unit": "vitest run tests/unit",
+    "test:integration": "vitest run tests/integration",
+    "test:watch": "vitest watch",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint .",
+    "format": "prettier --write ."
+  },
+  "bin": {
+    "git-aiadd": "./src/git-add-wrapper.sh",
+    "git-aiadd-on": "./src/git-aiadd-on.sh",
+    "git-aiadd-off": "./src/git-aiadd-off.sh"
+  },
+  "keywords": [
+    "git",
+    "gitignore",
+    "monorepo",
+    "ai",
+    "development"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@vitest/coverage-v8": "^1.2.0",
+    "eslint": "^8.56.0",
+    "prettier": "^3.2.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0",
+    "vitest": "^1.2.0"
+  }
+}

@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+.pnp/
+.pnp.js
+yarn.lock
+package-lock.json
+
+# Testing
+coverage/
+tests/temp/
+
+# Build
+dist/
+*.tsbuildinfo
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# --- AI Development Section ---
+ai.gitignore
+
+# Test artifacts
+tests/**/*.temp
+tests/**/temp/
+tests/**/*.log
+
+# Local development
+.env.local
+.env.development
+# --- End AI Development Section ---
