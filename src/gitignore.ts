@@ -1,7 +1,7 @@
-import fs from 'fs'
-import path from 'path'
-import { execSync } from 'child_process'
-import minimatch from 'minimatch'
+const fs = require('fs');
+const path = require('path');
+const { execSync } = require('child_process');
+const minimatch = require('minimatch');
 
 const AI_SECTION_START = '# --- AI Development Section ---'
 const AI_SECTION_END = '# --- End AI Development Section ---'
@@ -66,19 +66,7 @@ pretrained/
 # Temporary files
 temp.gitignore`
 
-interface GitIgnoreState {
-    aiPatterns: string[]
-    regularContent: string[]
-}
-
-/**
- * Check if AI mode is enabled (ai.gitignore exists)
- */
-export function isAIModeEnabled(dir: string): boolean {
-    return fs.existsSync(path.join(dir, 'ai.gitignore'))
-}
-
-function parseGitIgnore(content: string): GitIgnoreState {
+function parseGitIgnore(content) {
     const lines = content.split('\n')
     const startIndex = lines.indexOf(AI_SECTION_START)
     const endIndex = lines.indexOf(AI_SECTION_END)
@@ -97,9 +85,9 @@ function parseGitIgnore(content: string): GitIgnoreState {
     return { aiPatterns, regularContent }
 }
 
-function writeGitIgnore(repoPath: string, state: GitIgnoreState, includeAISection: boolean = false): void {
+function writeGitIgnore(repoPath, state, includeAISection = false) {
     const gitignorePath = path.join(repoPath, '.gitignore')
-    let content: string[]
+    let content
     
     if (includeAISection && state.aiPatterns.length > 0) {
         content = [
@@ -118,8 +106,8 @@ function writeGitIgnore(repoPath: string, state: GitIgnoreState, includeAISectio
     fs.writeFileSync(gitignorePath, content.join('\n'))
 }
 
-function readAIGitignorePatterns(repoPath: string): string[] {
-    const patterns: string[] = []
+function readAIGitignorePatterns(repoPath) {
+    const patterns = []
     const aiGitignore = path.join(repoPath, 'ai.gitignore')
     
     // Only read ai.gitignore from the current workspace
@@ -132,7 +120,7 @@ function readAIGitignorePatterns(repoPath: string): string[] {
     return [...new Set(patterns)]
 }
 
-function isIgnoredByAIPatterns(filePath: string, patterns: string[]): boolean {
+function isIgnoredByAIPatterns(filePath, patterns) {
     return patterns.some(pattern => {
         // Split pattern into directory and file parts
         const patternParts = pattern.split('/')
@@ -165,7 +153,7 @@ function isIgnoredByAIPatterns(filePath: string, patterns: string[]): boolean {
     })
 }
 
-export async function withoutAIPatterns<T>(repoPath: string, operation: () => Promise<T>): Promise<T> {
+function withoutAIPatterns(repoPath, operation) {
     const gitignorePath = path.join(repoPath, '.gitignore')
     const backupPath = path.join(repoPath, '.gitignore.bak')
     
@@ -186,7 +174,7 @@ export async function withoutAIPatterns<T>(repoPath: string, operation: () => Pr
         }
         
         // Run the operation
-        const result = await operation()
+        const result = operation()
         
         // Get list of staged files
         const stagedFiles = execSync('git diff --name-only --cached', {
@@ -223,10 +211,7 @@ export async function withoutAIPatterns<T>(repoPath: string, operation: () => Pr
     }
 }
 
-/**
- * Find all workspaces under the current directory
- */
-export function findWorkspaces(currentDir: string): string[] {
+function findWorkspaces(currentDir) {
     console.log('[findWorkspaces] Searching in:', currentDir)
     let workspaces = []
 
@@ -255,10 +240,7 @@ export function findWorkspaces(currentDir: string): string[] {
     return workspaces
 }
 
-/**
- * Ensure .gitignore and ai.gitignore exist with proper content
- */
-export function setupGitignore(dir: string): void {
+function setupGitignore(dir) {
     const gitignorePath = path.join(dir, '.gitignore')
     const aiGitignorePath = path.join(dir, 'ai.gitignore')
 
@@ -279,10 +261,7 @@ export function setupGitignore(dir: string): void {
     }
 }
 
-/**
- * Extract AI section from .gitignore to ai.gitignore
- */
-export function extractAISection(dir: string): void {
+function extractAISection(dir) {
     console.log('[extractAISection] Processing directory:', dir)
     const gitignorePath = path.join(dir, '.gitignore')
     const aiGitignorePath = path.join(dir, 'ai.gitignore')
@@ -343,10 +322,7 @@ export function extractAISection(dir: string): void {
     }
 }
 
-/**
- * Merge ai.gitignore back into .gitignore
- */
-export function mergeAISection(dir: string): void {
+function mergeAISection(dir) {
     const gitignorePath = path.join(dir, '.gitignore')
     const aiGitignorePath = path.join(dir, 'ai.gitignore')
 
@@ -379,10 +355,7 @@ export function mergeAISection(dir: string): void {
     fs.unlinkSync(aiGitignorePath)
 }
 
-/**
- * Handle git add with proper gitignore handling
- */
-export function gitAdd(paths: string[]): void {
+function gitAdd(paths) {
     const repoRoot = execSync('git rev-parse --show-toplevel', { encoding: 'utf8' }).trim()
     const currentDir = process.cwd()
     
@@ -413,7 +386,7 @@ export function gitAdd(paths: string[]): void {
         const allFiles = [...new Set([...untracked, ...modified])]
         
         // Get AI patterns from all workspaces
-        const allPatterns: string[] = []
+        const allPatterns = []
         for (const dir of findWorkspaces(currentDir)) {
             const aiGitignorePath = path.join(dir, 'ai.gitignore')
             if (fs.existsSync(aiGitignorePath)) {
@@ -444,10 +417,7 @@ export function gitAdd(paths: string[]): void {
     }
 }
 
-/**
- * Exit AI mode
- */
-export function exitAIMode(repoPath: string): void {
+function exitAIMode(repoPath) {
     const gitignorePath = path.join(repoPath, '.gitignore')
     const markerPath = path.join(repoPath, AI_MODE_MARKER)
     
@@ -463,4 +433,19 @@ export function exitAIMode(repoPath: string): void {
     if (fs.existsSync(markerPath)) {
         fs.unlinkSync(markerPath)
     }
+}
+
+function isAIModeEnabled(dir) {
+    return fs.existsSync(path.join(dir, 'ai.gitignore'))
+}
+
+module.exports = {
+    findWorkspaces,
+    extractAISection,
+    mergeAISection,
+    gitAdd,
+    isAIModeEnabled,
+    withoutAIPatterns,
+    setupGitignore,
+    exitAIMode
 }

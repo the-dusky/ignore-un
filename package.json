@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "description": "Tools for managing .gitignore files in monorepos with AI development support",
   "main": "dist/index.js",
-  "type": "module",
   "bin": {
     "git-aiadd": "./dist/cli.js"
   },
@@ -27,25 +26,20 @@
     "git",
     "gitignore",
     "monorepo",
-    "ai",
-    "development"
+    "ai"
   ],
   "author": "",
   "license": "MIT",
   "devDependencies": {
-    "@types/minimatch": "^5.1.2",
     "@types/node": "^20.11.5",
-    "@vitest/coverage-v8": "^1.2.1",
-    "@vitest/ui": "^1.2.1",
     "pkg": "^5.8.1",
     "tsx": "^4.7.0",
     "typescript": "^5.3.3",
-    "vite": "^5.0.12",
     "vitest": "^1.2.1"
   },
   "dependencies": {
     "commander": "^11.1.0",
-    "minimatch": "^5.1.0"
+    "minimatch": "^9.0.3"
   },
   "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
 }
