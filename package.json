@@ -9,12 +9,19 @@
   },
   "scripts": {
     "build": "tsc",
+    "build:exe": "pkg . --no-bytecode --public-packages \"*\" --public",
     "test": "vitest",
     "test:unit": "vitest run tests/unit",
     "test:integration": "vitest run tests/integration",
     "test:watch": "vitest watch",
     "test:coverage": "vitest run --coverage",
     "test:ui": "vitest --ui"
+  },
+  "pkg": {
+    "scripts": "dist/**/*.js",
+    "targets": ["node18-macos-arm64"],
+    "outputPath": "bin",
+    "assets": "dist/**/*"
   },
   "keywords": [
     "git",
@@ -30,6 +37,7 @@
     "@types/node": "^20.11.5",
     "@vitest/coverage-v8": "^1.2.1",
     "@vitest/ui": "^1.2.1",
+    "pkg": "^5.8.1",
     "tsx": "^4.7.0",
     "typescript": "^5.3.3",
     "vite": "^5.0.12",
