@@ -6,25 +6,46 @@ import fs from 'fs'
 // Helper to create a temporary git repo for testing
 export const createTempGitRepo = (fixtureName: string) => {
   const tempDir = path.join(__dirname, 'temp', fixtureName)
+  
+  // Clean up if exists
+  if (fs.existsSync(tempDir)) {
+    fs.rmSync(tempDir, { recursive: true, force: true })
+  }
+  
+  // Create directory structure
   fs.mkdirSync(tempDir, { recursive: true })
+  fs.mkdirSync(path.join(tempDir, 'apps/ml-workspace'), { recursive: true })
+  
+  // Initialize git
   execSync('git init', { cwd: tempDir })
+  execSync('git config --local user.name "Test User"', { cwd: tempDir })
+  execSync('git config --local user.email "test@example.com"', { cwd: tempDir })
+  
   return tempDir
 }
 
 // Clean up function
 export const cleanupTempRepo = (tempDir: string) => {
-  fs.rmSync(tempDir, { recursive: true, force: true })
+  if (fs.existsSync(tempDir)) {
+    fs.rmSync(tempDir, { recursive: true, force: true })
+  }
 }
 
 // Setup and teardown for each test suite
 beforeAll(() => {
-  // Create temp directory for test repos
-  fs.mkdirSync(path.join(__dirname, 'temp'), { recursive: true })
+  // Create base temp directory
+  const baseTemp = path.join(__dirname, 'temp')
+  if (!fs.existsSync(baseTemp)) {
+    fs.mkdirSync(baseTemp, { recursive: true })
+  }
 })
 
 afterAll(() => {
-  // Clean up all temp directories
-  fs.rmSync(path.join(__dirname, 'temp'), { recursive: true, force: true })
+  // Clean up base temp directory
+  const baseTemp = path.join(__dirname, 'temp')
+  if (fs.existsSync(baseTemp)) {
+    fs.rmSync(baseTemp, { recursive: true, force: true })
+  }
 })
 
 afterEach(() => {

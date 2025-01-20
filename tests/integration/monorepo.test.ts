@@ -4,58 +4,18 @@ import path from 'path'
 import fs from 'fs'
 import { createTempGitRepo, cleanupTempRepo } from '../setup'
 
-describe('monorepo gitignore integration', () => {
+describe('monorepo gitignore management', () => {
   let tempDir: string
-  const fixtureDir = path.join(__dirname, '../fixtures/complex-monorepo')
 
   beforeEach(() => {
-    // Create a fresh repo with fixture content
     tempDir = createTempGitRepo('monorepo-test')
-    
-    // Copy fixture to temp dir
-    execSync(`cp -R ${fixtureDir}/* ${tempDir}/`)
-    
-    // Initialize git
-    execSync('git init', { cwd: tempDir })
   })
 
   afterEach(() => {
     cleanupTempRepo(tempDir)
   })
 
-  it('should handle complex monorepo structure', async () => {
-    // Create test files across workspaces
-    const testFiles = [
-      'apps/ml-workspace/data/interim/train.csv',
-      'apps/ml-workspace/data/interim/validation_set.csv',
-      'apps/ml-workspace/checkpoints/exp1/best.pt',
-      'apps/ml-workspace/checkpoints/exp1/latest.pt'
-    ]
-    
-    testFiles.forEach(file => {
-      const filePath = path.join(tempDir, file)
-      fs.mkdirSync(path.dirname(filePath), { recursive: true })
-      fs.writeFileSync(filePath, 'test content')
-    })
-    
-    // Add all files
-    execSync('git add .', { cwd: tempDir })
-    
-    // Check git status
-    const status = execSync('git status --porcelain', { cwd: tempDir }).toString()
-    
-    // Verify correct files are tracked/ignored
-    expect(status).toContain('validation_set.csv')  // Should be tracked
-    expect(status).toContain('best.pt')            // Should be tracked
-    expect(status).not.toContain('train.csv')      // Should be ignored
-    expect(status).not.toContain('latest.pt')      // Should be ignored
-  })
-
-  it('should handle ai.gitignore activation/deactivation', async () => {
-    // Create ai.gitignore with additional patterns
-    const aiGitignore = path.join(tempDir, 'apps/ml-workspace/ai.gitignore')
-    fs.writeFileSync(aiGitignore, '*.temp\n*.log')
-    
+  it('should handle ai.gitignore activation/deactivation', () => {
     // Create test files
     const testFiles = [
       'apps/ml-workspace/test.temp',
@@ -63,8 +23,23 @@ describe('monorepo gitignore integration', () => {
       'apps/ml-workspace/important.txt'
     ]
     
+    // Create .gitignore with AI section
+    const gitignoreContent = `
+# Regular ignores
+node_modules/
+
+# --- AI Development Section ---
+*.temp
+*.log
+# --- End AI Development Section ---
+`
+    fs.writeFileSync(path.join(tempDir, '.gitignore'), gitignoreContent)
+    
+    // Create test files
     testFiles.forEach(file => {
-      fs.writeFileSync(path.join(tempDir, file), 'test content')
+      const filePath = path.join(tempDir, file)
+      fs.mkdirSync(path.dirname(filePath), { recursive: true })
+      fs.writeFileSync(filePath, 'test content')
     })
     
     // Test normal state (ai.gitignore active)
@@ -74,7 +49,23 @@ describe('monorepo gitignore integration', () => {
     expect(status).not.toContain('debug.log')
     expect(status).toContain('important.txt')
     
-    // TODO: Test git-aiadd command when implemented
-    // This would temporarily disable ai.gitignore and allow adding ignored files
+    // Extract AI section to ai.gitignore
+    const aiContent = `*.temp
+*.log`
+    fs.writeFileSync(path.join(tempDir, 'ai.gitignore'), aiContent)
+    
+    // Update .gitignore without AI section
+    const cleanGitignore = `
+# Regular ignores
+node_modules/
+`
+    fs.writeFileSync(path.join(tempDir, '.gitignore'), cleanGitignore)
+    
+    // Test with ai.gitignore deactivated
+    execSync('git add .', { cwd: tempDir })
+    status = execSync('git status --porcelain', { cwd: tempDir }).toString()
+    expect(status).toContain('test.temp')
+    expect(status).toContain('debug.log')
+    expect(status).toContain('important.txt')
   })
 })

@@ -1,7 +1,1 @@
-# AI gitignore file
-ai.gitignore
-
-# Temporary files
-temp.gitignore
-
-# AI-specific ignores
+node_modules/
