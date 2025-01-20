@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
-import path from 'path';
-import { findWorkspaces, extractAISection, mergeAISection, gitAdd, isAIModeEnabled } from './gitignore';
+import { findWorkspaces, extractAISection, mergeAISection, gitAdd, isAIModeEnabled } from './gitignore.js';
 
 const program = new Command();
 
@@ -16,15 +15,11 @@ program
     .action(() => {
         const currentDir = process.cwd();
         console.log('Current dir:', currentDir);
-        const workspaces: string[] = findWorkspaces(currentDir);
+        const workspaces = findWorkspaces(currentDir);
         console.log('Workspaces:', workspaces);
         for (const dir of workspaces) {
-            const aiSection = extractAISection(dir);
-            if (aiSection) {
-                mergeAISection(dir, aiSection);
-            }
+            extractAISection(dir);
         }
-        console.log('AI development mode enabled');
     });
 
 program
@@ -32,25 +27,12 @@ program
     .description('Exit AI development mode')
     .action(() => {
         const currentDir = process.cwd();
-        const workspaces: string[] = findWorkspaces(currentDir);
-        console.log('Workspaces:', workspaces);
+        const workspaces = findWorkspaces(currentDir);
         for (const dir of workspaces) {
-            console.log('Processing workspace:', dir);
             if (isAIModeEnabled(dir)) {
-                mergeAISection(dir, '');
+                mergeAISection(dir);
             }
         }
-        console.log('AI development mode disabled');
-    });
-
-program
-    .command('status')
-    .description('Check AI development mode status')
-    .action(() => {
-        const currentDir = process.cwd();
-        console.log('Current dir:', currentDir);
-        const enabled = isAIModeEnabled(currentDir);
-        console.log(`AI mode ${enabled ? 'enabled' : 'disabled'}`);
     });
 
 program

@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 "use strict";
-const { Command } = require('commander');
-const path = require('path');
-const { findWorkspaces, extractAISection, mergeAISection, gitAdd, isAIModeEnabled } = require('./gitignore');
-const program = new Command();
+Object.defineProperty(exports, "__esModule", { value: true });
+const commander_1 = require("commander");
+const gitignore_js_1 = require("./gitignore.js");
+const program = new commander_1.Command();
 program
     .name('git-aiadd')
     .description('Git add wrapper for AI development')
@@ -14,40 +14,28 @@ program
     .action(() => {
     const currentDir = process.cwd();
     console.log('Current dir:', currentDir);
-    const workspaces = findWorkspaces(currentDir);
+    const workspaces = (0, gitignore_js_1.findWorkspaces)(currentDir);
     console.log('Workspaces:', workspaces);
     for (const dir of workspaces) {
-        console.log('Processing workspace:', dir);
-        extractAISection(dir);
+        (0, gitignore_js_1.extractAISection)(dir);
     }
-    console.log('AI development mode enabled');
 });
 program
     .command('off')
     .description('Exit AI development mode')
     .action(() => {
     const currentDir = process.cwd();
-    console.log('Current dir:', currentDir);
-    const workspaces = findWorkspaces(currentDir);
-    console.log('Workspaces:', workspaces);
+    const workspaces = (0, gitignore_js_1.findWorkspaces)(currentDir);
     for (const dir of workspaces) {
-        console.log('Processing workspace:', dir);
-        mergeAISection(dir);
+        if ((0, gitignore_js_1.isAIModeEnabled)(dir)) {
+            (0, gitignore_js_1.mergeAISection)(dir);
+        }
     }
-    console.log('AI development mode disabled');
 });
 program
-    .command('status')
-    .description('Check AI development mode status')
-    .action(() => {
-    const currentDir = process.cwd();
-    console.log('Current dir:', currentDir);
-    const enabled = isAIModeEnabled(currentDir);
-    console.log(`AI mode ${enabled ? 'enabled' : 'disabled'}`);
-});
-program
-    .argument('[paths...]')
-    .action((paths) => {
-    gitAdd(paths);
+    .argument('[files...]')
+    .description('Add files while respecting AI patterns')
+    .action((files) => {
+    (0, gitignore_js_1.gitAdd)(files);
 });
 program.parse();

@@ -1,7 +1,7 @@
-const fs = require('fs');
-const path = require('path');
-const { execSync } = require('child_process');
-const minimatch = require('minimatch');
+import * as fs from 'fs';
+import * as path from 'path';
+import { execSync } from 'child_process';
+import { minimatch } from 'minimatch';
 
 interface GitIgnoreState {
     aiPatterns: string[];
@@ -417,7 +417,7 @@ function gitAdd(paths: string[]): void {
         // Filter out files that match AI patterns
         const filesToAdd: string[] = allFiles.filter((file: string) => {
             return !allPatterns.some((pattern: string) => {
-                return minimatch(file, pattern);
+                return minimatch(file, pattern, { matchBase: true });
             });
         })
 
@@ -457,7 +457,7 @@ function isAIModeEnabled(dir: string): boolean {
     return fs.existsSync(path.join(dir, 'ai.gitignore'))
 }
 
-module.exports = {
+export {
     findWorkspaces,
     extractAISection,
     mergeAISection,
