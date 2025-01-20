@@ -1,6 +1,8 @@
 #!/usr/bin/env node
-import { Command } from 'commander';
-import { findWorkspaces, extractAISection, mergeAISection, gitAdd, isAIModeEnabled } from './gitignore.js';
+"use strict";
+const { Command } = require('commander');
+const path = require('path');
+const { findWorkspaces, extractAISection, mergeAISection, gitAdd, isAIModeEnabled } = require('./gitignore');
 const program = new Command();
 program
     .name('git-aiadd')
@@ -43,7 +45,6 @@ program
     const enabled = isAIModeEnabled(currentDir);
     console.log(`AI mode ${enabled ? 'enabled' : 'disabled'}`);
 });
-// Default command for git add
 program
     .argument('[paths...]')
     .action((paths) => {

@@ -1,25 +1,31 @@
-import fs from 'fs';
-import path from 'path';
-import { AI_SECTION } from './types';
-export class FileSystemGitIgnoreManager {
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.FileSystemGitIgnoreManager = void 0;
+const fs_1 = __importDefault(require("fs"));
+const path_1 = __importDefault(require("path"));
+const types_1 = require("./types");
+class FileSystemGitIgnoreManager {
     findWorkspaces(rootDir) {
         const workspaces = [];
         // Always include current directory if it's a workspace
-        if (fs.existsSync(path.join(rootDir, 'package.json'))) {
+        if (fs_1.default.existsSync(path_1.default.join(rootDir, 'package.json'))) {
             workspaces.push(this.createWorkspaceConfig(rootDir));
         }
         // Find all package.json files
         const findPackageJson = (dir) => {
-            const entries = fs.readdirSync(dir, { withFileTypes: true });
+            const entries = fs_1.default.readdirSync(dir, { withFileTypes: true });
             for (const entry of entries) {
                 if (entry.name === 'node_modules')
                     continue;
-                const fullPath = path.join(dir, entry.name);
+                const fullPath = path_1.default.join(dir, entry.name);
                 if (entry.isDirectory()) {
                     findPackageJson(fullPath);
                 }
                 else if (entry.name === 'package.json') {
-                    workspaces.push(this.createWorkspaceConfig(path.dirname(fullPath)));
+                    workspaces.push(this.createWorkspaceConfig(path_1.default.dirname(fullPath)));
                 }
             }
         };
@@ -30,21 +36,21 @@ export class FileSystemGitIgnoreManager {
         const sections = [];
         let currentSection = null;
         let defaultContent = [];
-        if (!fs.existsSync(filePath)) {
+        if (!fs_1.default.existsSync(filePath)) {
             return { path: filePath, sections: [] };
         }
-        const content = fs.readFileSync(filePath, 'utf-8');
+        const content = fs_1.default.readFileSync(filePath, 'utf-8');
         const lines = content.split('\n');
         for (const line of lines) {
-            if (line === AI_SECTION.startMarker) {
+            if (line === types_1.AI_SECTION.startMarker) {
                 currentSection = {
-                    name: AI_SECTION.name,
+                    name: types_1.AI_SECTION.name,
                     content: [],
-                    startMarker: AI_SECTION.startMarker,
-                    endMarker: AI_SECTION.endMarker
+                    startMarker: types_1.AI_SECTION.startMarker,
+                    endMarker: types_1.AI_SECTION.endMarker
                 };
             }
-            else if (line === AI_SECTION.endMarker && currentSection) {
+            else if (line === types_1.AI_SECTION.endMarker && currentSection) {
                 sections.push(currentSection);
                 currentSection = null;
             }
@@ -79,10 +85,10 @@ export class FileSystemGitIgnoreManager {
             content.push(...section.content);
             content.push(section.endMarker);
         }
-        fs.writeFileSync(file.path, content.join('\n'));
+        fs_1.default.writeFileSync(file.path, content.join('\n'));
     }
     extractAiSection(gitignore) {
-        const aiSection = gitignore.sections.find(s => s.name === AI_SECTION.name);
+        const aiSection = gitignore.sections.find(s => s.name === types_1.AI_SECTION.name);
         if (!aiSection)
             return null;
         // Remove AI section from gitignore
@@ -91,7 +97,7 @@ export class FileSystemGitIgnoreManager {
     }
     mergeAiSection(gitignore, aiSection) {
         // Remove any existing AI section
-        gitignore.sections = gitignore.sections.filter(s => s.name !== AI_SECTION.name);
+        gitignore.sections = gitignore.sections.filter(s => s.name !== types_1.AI_SECTION.name);
         // Add new AI section
         gitignore.sections.push(aiSection);
     }
@@ -99,8 +105,9 @@ export class FileSystemGitIgnoreManager {
         return {
             path: dir,
             hasPackageJson: true,
-            gitignorePath: path.join(dir, '.gitignore'),
-            aiGitignorePath: path.join(dir, 'ai.gitignore')
+            gitignorePath: path_1.default.join(dir, '.gitignore'),
+            aiGitignorePath: path_1.default.join(dir, 'ai.gitignore')
         };
     }
 }
+exports.FileSystemGitIgnoreManager = FileSystemGitIgnoreManager;

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-const { Command } = require('commander');
-const path = require('path');
-const { findWorkspaces, extractAISection, mergeAISection, gitAdd, isAIModeEnabled } = require('./gitignore');
+import { Command } from 'commander';
+import path from 'path';
+import { findWorkspaces, extractAISection, mergeAISection, gitAdd, isAIModeEnabled } from './gitignore';
 
 const program = new Command();
 
@@ -16,11 +16,13 @@ program
     .action(() => {
         const currentDir = process.cwd();
         console.log('Current dir:', currentDir);
-        const workspaces = findWorkspaces(currentDir);
+        const workspaces: string[] = findWorkspaces(currentDir);
         console.log('Workspaces:', workspaces);
         for (const dir of workspaces) {
-            console.log('Processing workspace:', dir);
-            extractAISection(dir);
+            const aiSection = extractAISection(dir);
+            if (aiSection) {
+                mergeAISection(dir, aiSection);
+            }
         }
         console.log('AI development mode enabled');
     });
@@ -30,12 +32,13 @@ program
     .description('Exit AI development mode')
     .action(() => {
         const currentDir = process.cwd();
-        console.log('Current dir:', currentDir);
-        const workspaces = findWorkspaces(currentDir);
+        const workspaces: string[] = findWorkspaces(currentDir);
         console.log('Workspaces:', workspaces);
         for (const dir of workspaces) {
             console.log('Processing workspace:', dir);
-            mergeAISection(dir);
+            if (isAIModeEnabled(dir)) {
+                mergeAISection(dir, '');
+            }
         }
         console.log('AI development mode disabled');
     });
@@ -51,9 +54,10 @@ program
     });
 
 program
-    .argument('[paths...]')
-    .action((paths) => {
-        gitAdd(paths);
+    .argument('[files...]')
+    .description('Add files while respecting AI patterns')
+    .action((files: string[]) => {
+        gitAdd(files);
     });
 
 program.parse();

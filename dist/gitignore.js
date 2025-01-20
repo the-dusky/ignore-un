@@ -1,7 +1,8 @@
-import fs from 'fs';
-import path from 'path';
-import { execSync } from 'child_process';
-import minimatch from 'minimatch';
+"use strict";
+const fs = require('fs');
+const path = require('path');
+const { execSync } = require('child_process');
+const minimatch = require('minimatch');
 const AI_SECTION_START = '# --- AI Development Section ---';
 const AI_SECTION_END = '# --- End AI Development Section ---';
 const AI_MODE_MARKER = '.ai_mode';
@@ -58,12 +59,6 @@ pretrained/
 
 # Temporary files
 temp.gitignore`;
-/**
- * Check if AI mode is enabled (ai.gitignore exists)
- */
-export function isAIModeEnabled(dir) {
-    return fs.existsSync(path.join(dir, 'ai.gitignore'));
-}
 function parseGitIgnore(content) {
     const lines = content.split('\n');
     const startIndex = lines.indexOf(AI_SECTION_START);
@@ -137,7 +132,7 @@ function isIgnoredByAIPatterns(filePath, patterns) {
         return regex.test(filePath);
     });
 }
-export async function withoutAIPatterns(repoPath, operation) {
+function withoutAIPatterns(repoPath, operation) {
     const gitignorePath = path.join(repoPath, '.gitignore');
     const backupPath = path.join(repoPath, '.gitignore.bak');
     // Get current AI patterns before modifying .gitignore
@@ -154,7 +149,7 @@ export async function withoutAIPatterns(repoPath, operation) {
             writeGitIgnore(repoPath, { ...currentState, aiPatterns: [] }, false);
         }
         // Run the operation
-        const result = await operation();
+        const result = operation();
         // Get list of staged files
         const stagedFiles = execSync('git diff --name-only --cached', {
             cwd: repoPath,
@@ -184,10 +179,7 @@ export async function withoutAIPatterns(repoPath, operation) {
         }
     }
 }
-/**
- * Find all workspaces under the current directory
- */
-export function findWorkspaces(currentDir) {
+function findWorkspaces(currentDir) {
     console.log('[findWorkspaces] Searching in:', currentDir);
     let workspaces = [];
     // Always include the current directory if it has a .git folder
@@ -213,10 +205,7 @@ export function findWorkspaces(currentDir) {
     console.log('[findWorkspaces] Found workspaces:', workspaces);
     return workspaces;
 }
-/**
- * Ensure .gitignore and ai.gitignore exist with proper content
- */
-export function setupGitignore(dir) {
+function setupGitignore(dir) {
     const gitignorePath = path.join(dir, '.gitignore');
     const aiGitignorePath = path.join(dir, 'ai.gitignore');
     // Create .gitignore if it doesn't exist
@@ -235,10 +224,7 @@ export function setupGitignore(dir) {
         fs.writeFileSync(aiGitignorePath, DEFAULT_AI_GITIGNORE);
     }
 }
-/**
- * Extract AI section from .gitignore to ai.gitignore
- */
-export function extractAISection(dir) {
+function extractAISection(dir) {
     console.log('[extractAISection] Processing directory:', dir);
     const gitignorePath = path.join(dir, '.gitignore');
     const aiGitignorePath = path.join(dir, 'ai.gitignore');
@@ -287,10 +273,7 @@ export function extractAISection(dir) {
         fs.writeFileSync(aiGitignorePath, '');
     }
 }
-/**
- * Merge ai.gitignore back into .gitignore
- */
-export function mergeAISection(dir) {
+function mergeAISection(dir) {
     const gitignorePath = path.join(dir, '.gitignore');
     const aiGitignorePath = path.join(dir, 'ai.gitignore');
     if (!fs.existsSync(aiGitignorePath)) {
@@ -316,10 +299,7 @@ export function mergeAISection(dir) {
     // Remove ai.gitignore
     fs.unlinkSync(aiGitignorePath);
 }
-/**
- * Handle git add with proper gitignore handling
- */
-export function gitAdd(paths) {
+function gitAdd(paths) {
     const repoRoot = execSync('git rev-parse --show-toplevel', { encoding: 'utf8' }).trim();
     const currentDir = process.cwd();
     // First, add .gitignore files to ensure they're tracked
@@ -372,10 +352,7 @@ export function gitAdd(paths) {
         });
     }
 }
-/**
- * Exit AI mode
- */
-export function exitAIMode(repoPath) {
+function exitAIMode(repoPath) {
     const gitignorePath = path.join(repoPath, '.gitignore');
     const markerPath = path.join(repoPath, AI_MODE_MARKER);
     if (fs.existsSync(gitignorePath)) {
@@ -389,3 +366,16 @@ export function exitAIMode(repoPath) {
         fs.unlinkSync(markerPath);
     }
 }
+function isAIModeEnabled(dir) {
+    return fs.existsSync(path.join(dir, 'ai.gitignore'));
+}
+module.exports = {
+    findWorkspaces,
+    extractAISection,
+    mergeAISection,
+    gitAdd,
+    isAIModeEnabled,
+    withoutAIPatterns,
+    setupGitignore,
+    exitAIMode
+};

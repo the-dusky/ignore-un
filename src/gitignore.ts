@@ -3,11 +3,16 @@ const path = require('path');
 const { execSync } = require('child_process');
 const minimatch = require('minimatch');
 
+interface GitIgnoreState {
+    aiPatterns: string[];
+    regularContent: string[];
+}
+
 const AI_SECTION_START = '# --- AI Development Section ---'
 const AI_SECTION_END = '# --- End AI Development Section ---'
 const AI_MODE_MARKER = '.ai_mode'
 
-const DEFAULT_PATTERNS = [
+const DEFAULT_PATTERNS: string[] = [
     '# Node',
     'node_modules',
     'npm-debug.log',
@@ -27,14 +32,14 @@ const DEFAULT_PATTERNS = [
     '*.tsbuildinfo'
 ]
 
-const DEFAULT_GITIGNORE = `# AI gitignore file
+const DEFAULT_GITIGNORE: string = `# AI gitignore file
 ai.gitignore
 
 # Project-specific ignores
 .env
 .env.local`
 
-const DEFAULT_AI_GITIGNORE = `# AI Development Files
+const DEFAULT_AI_GITIGNORE: string = `# AI Development Files
 *.onnx
 *.pt
 *.pth
@@ -66,10 +71,10 @@ pretrained/
 # Temporary files
 temp.gitignore`
 
-function parseGitIgnore(content) {
-    const lines = content.split('\n')
-    const startIndex = lines.indexOf(AI_SECTION_START)
-    const endIndex = lines.indexOf(AI_SECTION_END)
+function parseGitIgnore(content: string): GitIgnoreState {
+    const lines: string[] = content.split('\n')
+    const startIndex: number = lines.indexOf(AI_SECTION_START)
+    const endIndex: number = lines.indexOf(AI_SECTION_END)
     
     if (startIndex === -1 || endIndex === -1) {
         return { 
@@ -78,16 +83,16 @@ function parseGitIgnore(content) {
         }
     }
     
-    const aiPatterns = lines.slice(startIndex + 1, endIndex)
-        .filter(line => line.trim() && line !== 'ai.gitignore')
-    const regularContent = [...lines.slice(0, startIndex), ...lines.slice(endIndex + 1)]
+    const aiPatterns: string[] = lines.slice(startIndex + 1, endIndex)
+        .filter((line: string) => line.trim() && line !== 'ai.gitignore')
+    const regularContent: string[] = [...lines.slice(0, startIndex), ...lines.slice(endIndex + 1)]
     
     return { aiPatterns, regularContent }
 }
 
-function writeGitIgnore(repoPath, state, includeAISection = false) {
-    const gitignorePath = path.join(repoPath, '.gitignore')
-    let content
+function writeGitIgnore(repoPath: string, state: GitIgnoreState, includeAISection: boolean): void {
+    const gitignorePath: string = path.join(repoPath, '.gitignore')
+    let content: string[]
     
     if (includeAISection && state.aiPatterns.length > 0) {
         content = [
@@ -106,25 +111,25 @@ function writeGitIgnore(repoPath, state, includeAISection = false) {
     fs.writeFileSync(gitignorePath, content.join('\n'))
 }
 
-function readAIGitignorePatterns(repoPath) {
-    const patterns = []
-    const aiGitignore = path.join(repoPath, 'ai.gitignore')
+function readAIGitignorePatterns(repoPath: string): string[] {
+    const patterns: string[] = []
+    const aiGitignore: string = path.join(repoPath, 'ai.gitignore')
     
     // Only read ai.gitignore from the current workspace
     if (fs.existsSync(aiGitignore)) {
         patterns.push(...fs.readFileSync(aiGitignore, 'utf-8')
             .split('\n')
-            .filter(line => line.trim()))
+            .filter((line: string) => line.trim()))
     }
     
     return [...new Set(patterns)]
 }
 
-function isIgnoredByAIPatterns(filePath, patterns) {
+function isIgnoredByAIPatterns(filePath: string, patterns: string[]): boolean {
     return patterns.some(pattern => {
         // Split pattern into directory and file parts
-        const patternParts = pattern.split('/')
-        const fileParts = filePath.split('/')
+        const patternParts: string[] = pattern.split('/')
+        const fileParts: string[] = filePath.split('/')
         
         // If pattern has more parts than file path, it can't match
         if (patternParts.length > fileParts.length) {
@@ -133,7 +138,7 @@ function isIgnoredByAIPatterns(filePath, patterns) {
         
         // For patterns without directory part, match against basename
         if (patternParts.length === 1) {
-            const regex = new RegExp('^' + patternParts[0]
+            const regex: RegExp = new RegExp('^' + patternParts[0]
                 .replace(/\./g, '\\.')
                 .replace(/\*/g, '[^/]*')
                 .replace(/\?/g, '[^/]') + '$')
@@ -141,24 +146,24 @@ function isIgnoredByAIPatterns(filePath, patterns) {
         }
         
         // For patterns with directory part, match full path
-        const regexStr = patternParts
+        const regexStr: string = patternParts
             .map(part => part
                 .replace(/\./g, '\\.')
                 .replace(/\*/g, '[^/]*')
                 .replace(/\?/g, '[^/]'))
             .join('/')
         
-        const regex = new RegExp('^' + regexStr + '$')
+        const regex: RegExp = new RegExp('^' + regexStr + '$')
         return regex.test(filePath)
     })
 }
 
-function withoutAIPatterns(repoPath, operation) {
-    const gitignorePath = path.join(repoPath, '.gitignore')
-    const backupPath = path.join(repoPath, '.gitignore.bak')
+function withoutAIPatterns(repoPath: string, operation: () => any): any {
+    const gitignorePath: string = path.join(repoPath, '.gitignore')
+    const backupPath: string = path.join(repoPath, '.gitignore.bak')
     
     // Get current AI patterns before modifying .gitignore
-    const currentState = fs.existsSync(gitignorePath) 
+    const currentState: GitIgnoreState = fs.existsSync(gitignorePath) 
         ? parseGitIgnore(fs.readFileSync(gitignorePath, 'utf-8'))
         : { aiPatterns: [], regularContent: [] }
     
@@ -174,22 +179,22 @@ function withoutAIPatterns(repoPath, operation) {
         }
         
         // Run the operation
-        const result = operation()
+        const result: any = operation()
         
         // Get list of staged files
-        const stagedFiles = execSync('git diff --name-only --cached', {
+        const stagedFiles: string[] = execSync('git diff --name-only --cached', {
             cwd: repoPath,
             encoding: 'utf-8'
-        }).toString().split('\n').filter(Boolean)
+        }).toString().split('\n').filter((file: string) => file)
         
         // Get list of files that would be staged
-        const untrackedFiles = execSync('git ls-files --others --exclude-standard', {
+        const untrackedFiles: string[] = execSync('git ls-files --others --exclude-standard', {
             cwd: repoPath,
             encoding: 'utf-8'
-        }).toString().split('\n').filter(Boolean)
+        }).toString().split('\n').filter((file: string) => file)
         
         // Filter out files that match AI patterns
-        const filesToUnstage = stagedFiles.filter(file => 
+        const filesToUnstage: string[] = stagedFiles.filter(file => 
             isIgnoredByAIPatterns(file, currentState.aiPatterns)
         )
         
@@ -211,9 +216,9 @@ function withoutAIPatterns(repoPath, operation) {
     }
 }
 
-function findWorkspaces(currentDir) {
+function findWorkspaces(currentDir: string): string[] {
     console.log('[findWorkspaces] Searching in:', currentDir)
-    let workspaces = []
+    let workspaces: string[] = []
 
     // Always include the current directory if it has a .git folder
     if (fs.existsSync(path.join(currentDir, '.git'))) {
@@ -223,16 +228,16 @@ function findWorkspaces(currentDir) {
 
     // Look for other workspaces in subdirectories
     try {
-        const subdirs = fs.readdirSync(currentDir)
+        const subdirs: string[] = fs.readdirSync(currentDir)
         console.log('[findWorkspaces] Found subdirs:', subdirs)
         for (const subdir of subdirs) {
-            const fullPath = path.join(currentDir, subdir)
+            const fullPath: string = path.join(currentDir, subdir)
             if (fs.statSync(fullPath).isDirectory() && fs.existsSync(path.join(fullPath, '.git'))) {
                 console.log('[findWorkspaces] Found git repo in:', fullPath)
                 workspaces.push(fullPath)
             }
         }
-    } catch (error) {
+    } catch (error: any) {
         console.error('[findWorkspaces] Error reading directory:', error)
     }
 
@@ -240,16 +245,16 @@ function findWorkspaces(currentDir) {
     return workspaces
 }
 
-function setupGitignore(dir) {
-    const gitignorePath = path.join(dir, '.gitignore')
-    const aiGitignorePath = path.join(dir, 'ai.gitignore')
+function setupGitignore(dir: string): void {
+    const gitignorePath: string = path.join(dir, '.gitignore')
+    const aiGitignorePath: string = path.join(dir, 'ai.gitignore')
 
     // Create .gitignore if it doesn't exist
     if (!fs.existsSync(gitignorePath)) {
         fs.writeFileSync(gitignorePath, DEFAULT_GITIGNORE)
     } else {
         // Ensure ai.gitignore is listed
-        const content = fs.readFileSync(gitignorePath, 'utf8')
+        const content: string = fs.readFileSync(gitignorePath, 'utf8')
         if (!content.includes('ai.gitignore')) {
             fs.writeFileSync(gitignorePath, `# AI gitignore file\nai.gitignore\n\n${content}`)
         }
@@ -261,38 +266,48 @@ function setupGitignore(dir) {
     }
 }
 
-function extractAISection(dir) {
+function extractAISection(dir: string): void {
     console.log('[extractAISection] Processing directory:', dir)
-    const gitignorePath = path.join(dir, '.gitignore')
-    const aiGitignorePath = path.join(dir, 'ai.gitignore')
+    const gitignorePath: string = path.join(dir, '.gitignore')
+    const aiGitignorePath: string = path.join(dir, 'ai.gitignore')
 
     if (!fs.existsSync(gitignorePath)) {
         console.log('[extractAISection] No .gitignore found')
         return
     }
 
-    const content = fs.readFileSync(gitignorePath, 'utf8')
-    const lines = content.split('\n')
+    const content: string = fs.readFileSync(gitignorePath, 'utf8')
+    const lines: string[] = content.split('\n')
     
     console.log('[extractAISection] Content:', content)
     console.log('[extractAISection] Looking for:', AI_SECTION_START)
-    console.log('[extractAISection] Lines containing "AI":', lines.filter(l => l.includes('AI')))
+    console.log('[extractAISection] Lines containing "AI":', lines.filter((l: string) => l.includes('AI')))
 
-    const startIndex = lines.indexOf(AI_SECTION_START)
-    const endIndex = lines.indexOf(AI_SECTION_END)
+    const startIndex: number = lines.indexOf(AI_SECTION_START)
+    const endIndex: number = lines.indexOf(AI_SECTION_END)
     
     console.log('[extractAISection] Start index:', startIndex)
     console.log('[extractAISection] End index:', endIndex)
 
     if (startIndex !== -1 && endIndex !== -1) {
         // Extract AI section
-        const aiSection = lines.slice(startIndex + 1, endIndex)
-            .filter(line => line.trim() && !line.startsWith('#'))
+        let aiSection: string = '';
+        let inAiSection: boolean = false;
+
+        for (const line of lines) {
+            if (line === AI_SECTION_START) {
+                inAiSection = true;
+            } else if (line === AI_SECTION_END) {
+                inAiSection = false;
+            } else if (inAiSection && line.trim() && !line.startsWith('#')) {
+                aiSection += line + '\n';
+            }
+        }
             
         console.log('[extractAISection] AI section:', aiSection)
 
         // Remove section from .gitignore
-        const newLines = [
+        const newLines: string[] = [
             ...lines.slice(0, startIndex),
             ...lines.slice(endIndex + 1)
         ]
@@ -302,13 +317,13 @@ function extractAISection(dir) {
             newLines.unshift('ai.gitignore')
         }
         
-        const newContent = newLines.filter(line => line.trim()).join('\n') + '\n'
+        const newContent: string = newLines.filter((line: string) => line.trim() !== 'ai.gitignore').join('\n') + '\n'
         console.log('[extractAISection] New .gitignore content:', newContent)
 
         // Write files
         console.log('[extractAISection] Writing files...')
         fs.writeFileSync(gitignorePath, newContent)
-        fs.writeFileSync(aiGitignorePath, aiSection.join('\n') + '\n')
+        fs.writeFileSync(aiGitignorePath, aiSection)
         
         console.log('[extractAISection] Files written')
         console.log('[extractAISection] Final .gitignore:', fs.readFileSync(gitignorePath, 'utf8'))
@@ -316,29 +331,29 @@ function extractAISection(dir) {
     } else if (!fs.existsSync(aiGitignorePath)) {
         console.log('[extractAISection] No AI section found, creating empty ai.gitignore')
         // No AI section but we need ai.gitignore in .gitignore
-        const newContent = ['ai.gitignore', content].filter(line => line.trim()).join('\n') + '\n'
+        const newContent: string = ['ai.gitignore', content].filter((line: string) => line.trim()).join('\n') + '\n'
         fs.writeFileSync(gitignorePath, newContent)
         fs.writeFileSync(aiGitignorePath, '')
     }
 }
 
-function mergeAISection(dir) {
-    const gitignorePath = path.join(dir, '.gitignore')
-    const aiGitignorePath = path.join(dir, 'ai.gitignore')
+function mergeAISection(dir: string): void {
+    const gitignorePath: string = path.join(dir, '.gitignore')
+    const aiGitignorePath: string = path.join(dir, 'ai.gitignore')
 
     if (!fs.existsSync(aiGitignorePath)) {
         return
     }
 
-    const aiContent = fs.readFileSync(aiGitignorePath, 'utf8')
-    let gitignoreContent = fs.existsSync(gitignorePath) 
+    const aiContent: string = fs.readFileSync(aiGitignorePath, 'utf8')
+    let gitignoreContent: string = fs.existsSync(gitignorePath) 
         ? fs.readFileSync(gitignorePath, 'utf8')
         : ''
 
     // Remove any existing AI section
-    const lines = gitignoreContent.split('\n')
-    const startIndex = lines.indexOf(AI_SECTION_START)
-    const endIndex = lines.indexOf(AI_SECTION_END)
+    const lines: string[] = gitignoreContent.split('\n')
+    const startIndex: number = lines.indexOf(AI_SECTION_START)
+    const endIndex: number = lines.indexOf(AI_SECTION_END)
 
     if (startIndex !== -1 && endIndex !== -1) {
         gitignoreContent = [
@@ -348,20 +363,20 @@ function mergeAISection(dir) {
     }
 
     // Add new AI section
-    const newContent = `${gitignoreContent.trim()}\n\n${AI_SECTION_START}\n${aiContent}\n${AI_SECTION_END}\n`
+    const newContent: string = `${gitignoreContent.trim()}\n\n${AI_SECTION_START}\n${aiContent}\n${AI_SECTION_END}\n`
     fs.writeFileSync(gitignorePath, newContent)
 
     // Remove ai.gitignore
     fs.unlinkSync(aiGitignorePath)
 }
 
-function gitAdd(paths) {
-    const repoRoot = execSync('git rev-parse --show-toplevel', { encoding: 'utf8' }).trim()
-    const currentDir = process.cwd()
+function gitAdd(paths: string[]): void {
+    const repoRoot: string = execSync('git rev-parse --show-toplevel', { encoding: 'utf8' }).trim()
+    const currentDir: string = process.cwd()
     
     // First, add .gitignore files to ensure they're tracked
     for (const dir of findWorkspaces(currentDir)) {
-        const gitignorePath = path.join(dir, '.gitignore')
+        const gitignorePath: string = path.join(dir, '.gitignore')
         if (fs.existsSync(gitignorePath)) {
             execSync(`git add "${gitignorePath}"`, {
                 cwd: repoRoot,
@@ -373,40 +388,43 @@ function gitAdd(paths) {
     // If in AI mode, we need to check patterns
     if (isAIModeEnabled(currentDir)) {
         // Get all untracked and modified files
-        const untracked = execSync(`git ls-files -o --exclude-standard`, {
-            cwd: repoRoot,
-            encoding: 'utf8'
-        }).split('\n').filter(f => f.trim())
+        const untrackedOutput: string = execSync(`git ls-files -o --exclude-standard`, {
+            encoding: 'utf8',
+            cwd: repoRoot
+        });
+        const untracked: string[] = untrackedOutput.split('\n').filter((f: string) => f);
+
+        // Get list of modified files
+        const modifiedOutput: string = execSync(`git ls-files -m`, {
+            encoding: 'utf8',
+            cwd: repoRoot
+        });
+        const modified: string[] = modifiedOutput.split('\n').filter((f: string) => f);
         
-        const modified = execSync(`git ls-files -m`, {
-            cwd: repoRoot,
-            encoding: 'utf8'
-        }).split('\n').filter(f => f.trim())
-        
-        const allFiles = [...new Set([...untracked, ...modified])]
+        const allFiles: string[] = [...new Set([...untracked, ...modified])]
         
         // Get AI patterns from all workspaces
-        const allPatterns = []
+        const allPatterns: string[] = []
         for (const dir of findWorkspaces(currentDir)) {
-            const aiGitignorePath = path.join(dir, 'ai.gitignore')
+            const aiGitignorePath: string = path.join(dir, 'ai.gitignore')
             if (fs.existsSync(aiGitignorePath)) {
-                const patterns = fs.readFileSync(aiGitignorePath, 'utf8')
-                    .split('\n')
-                    .filter(line => line.trim() && !line.startsWith('#'))
-                allPatterns.push(...patterns)
+                const content: string = fs.readFileSync(aiGitignorePath, 'utf8');
+                const lines: string[] = content.split('\n').filter((line: string) => line.trim());
+                allPatterns.push(...lines)
             }
         }
         
-        // Add files that don't match AI patterns
-        const filesToAdd = allFiles.filter(file => 
-            !allPatterns.some(pattern => minimatch(file, pattern, { matchBase: true }))
-        )
-        
+        // Filter out files that match AI patterns
+        const filesToAdd: string[] = allFiles.filter((file: string) => {
+            return !allPatterns.some((pattern: string) => {
+                return minimatch(file, pattern);
+            });
+        })
+
+        // Add files
         if (filesToAdd.length > 0) {
-            execSync(`git add ${filesToAdd.map(f => `"${f}"`).join(' ')}`, {
-                cwd: repoRoot,
-                stdio: 'pipe'
-            })
+            const command: string = `git add ${filesToAdd.join(' ')}`;
+            execSync(command, { stdio: 'inherit' });
         }
     } else {
         // Not in AI mode, just do normal git add
@@ -417,15 +435,15 @@ function gitAdd(paths) {
     }
 }
 
-function exitAIMode(repoPath) {
-    const gitignorePath = path.join(repoPath, '.gitignore')
-    const markerPath = path.join(repoPath, AI_MODE_MARKER)
+function exitAIMode(repoPath: string): void {
+    const gitignorePath: string = path.join(repoPath, '.gitignore')
+    const markerPath: string = path.join(repoPath, AI_MODE_MARKER)
     
     if (fs.existsSync(gitignorePath)) {
-        const state = parseGitIgnore(fs.readFileSync(gitignorePath, 'utf-8'))
+        const state: GitIgnoreState = parseGitIgnore(fs.readFileSync(gitignorePath, 'utf-8'))
         
         // Remove AI section and marker from .gitignore
-        state.regularContent = state.regularContent.filter(line => line.trim() !== AI_MODE_MARKER)
+        state.regularContent = state.regularContent.filter((line: string) => line.trim() !== AI_MODE_MARKER)
         writeGitIgnore(repoPath, state, false)
     }
     
@@ -435,7 +453,7 @@ function exitAIMode(repoPath) {
     }
 }
 
-function isAIModeEnabled(dir) {
+function isAIModeEnabled(dir: string): boolean {
     return fs.existsSync(path.join(dir, 'ai.gitignore'))
 }
 
