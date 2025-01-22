@@ -1,6 +1,6 @@
 {
   "name": "gitignore-tools",
-  "version": "1.0.0",
+  "version": "1.0.3",
   "description": "Tools for managing .gitignore files in monorepos with AI development support",
   "main": "dist/index.js",
   "bin": {
@@ -8,7 +8,7 @@
   },
   "scripts": {
     "build": "tsc",
-    "build:exe": "pkg . --no-bytecode --public-packages \"*\" --public",
+    "build:exe": "pkg . --no-bytecode --public-packages \"*\" --public -o bin/git-aiadd",
     "test": "vitest",
     "test:unit": "vitest run tests/unit",
     "test:integration": "vitest run tests/integration",
@@ -19,8 +19,7 @@
   "pkg": {
     "scripts": "dist/**/*.js",
     "targets": ["node18-macos-arm64"],
-    "outputPath": "bin",
-    "assets": "dist/**/*"
+    "outputPath": "bin"
   },
   "keywords": [
     "git",
@@ -30,16 +29,18 @@
   ],
   "author": "",
   "license": "MIT",
+  "dependencies": {
+    "commander": "^11.1.0",
+    "glob": "^10.3.10",
+    "minimatch": "^9.0.3"
+  },
   "devDependencies": {
+    "@types/glob": "^8.1.0",
     "@types/node": "^20.11.5",
     "pkg": "^5.8.1",
     "tsx": "^4.7.0",
     "typescript": "^5.3.3",
     "vitest": "^1.2.1"
-  },
-  "dependencies": {
-    "commander": "^11.1.0",
-    "minimatch": "^9.0.3"
   },
   "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
 }

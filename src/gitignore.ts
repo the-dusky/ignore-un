@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { execSync } from 'child_process';
 import { minimatch } from 'minimatch';
+import { glob } from 'glob';
 
 interface GitIgnoreState {
     aiPatterns: string[];
@@ -217,31 +218,80 @@ function withoutAIPatterns(repoPath: string, operation: () => any): any {
 }
 
 function findWorkspaces(currentDir: string): string[] {
-    console.log('[findWorkspaces] Searching in:', currentDir)
+    console.log('DEBUG: findWorkspaces called for:', currentDir)
     let workspaces: string[] = []
 
     // Always include the current directory if it has a .git folder
     if (fs.existsSync(path.join(currentDir, '.git'))) {
-        console.log('[findWorkspaces] Found git repo in current dir')
+        console.log('DEBUG: Found git repo in current dir:', currentDir)
         workspaces.push(currentDir)
-    }
-
-    // Look for other workspaces in subdirectories
-    try {
-        const subdirs: string[] = fs.readdirSync(currentDir)
-        console.log('[findWorkspaces] Found subdirs:', subdirs)
-        for (const subdir of subdirs) {
-            const fullPath: string = path.join(currentDir, subdir)
-            if (fs.statSync(fullPath).isDirectory() && fs.existsSync(path.join(fullPath, '.git'))) {
-                console.log('[findWorkspaces] Found git repo in:', fullPath)
-                workspaces.push(fullPath)
+        
+        // Check for workspace configuration in package.json
+        const pkgPath = path.join(currentDir, 'package.json')
+        if (fs.existsSync(pkgPath)) {
+            try {
+                console.log('DEBUG: Found package.json at:', pkgPath)
+                const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'))
+                if (pkg.workspaces) {
+                    console.log('DEBUG: Found workspace config:', pkg.workspaces)
+                    // Handle both array and object formats
+                    const patterns = Array.isArray(pkg.workspaces) ? pkg.workspaces : pkg.workspaces.packages || []
+                    console.log('DEBUG: Workspace patterns:', patterns)
+                    for (const pattern of patterns) {
+                        // Use glob to find all matching directories
+                        const matches = glob.sync(pattern, { cwd: currentDir })
+                        console.log('DEBUG: Glob matches for', pattern, ':', matches)
+                        for (const match of matches) {
+                            const fullPath = path.join(currentDir, match)
+                            console.log('DEBUG: Processing match:', fullPath)
+                            if (fs.statSync(fullPath).isDirectory()) {
+                                // Add the workspace directory itself
+                                if (!workspaces.includes(fullPath)) {
+                                    console.log('DEBUG: Adding workspace:', fullPath)
+                                    workspaces.push(fullPath)
+                                }
+                                // Also check for nested workspaces
+                                console.log('DEBUG: Checking for nested workspaces in:', fullPath)
+                                const nestedWorkspaces = findWorkspaces(fullPath)
+                                for (const nested of nestedWorkspaces) {
+                                    if (!workspaces.includes(nested)) {
+                                        console.log('DEBUG: Adding nested workspace:', nested)
+                                        workspaces.push(nested)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    console.log('DEBUG: No workspaces config found in package.json')
+                }
+            } catch (error) {
+                console.error('DEBUG: Error reading package.json:', error)
             }
         }
-    } catch (error: any) {
-        console.error('[findWorkspaces] Error reading directory:', error)
+    } else {
+        console.log('DEBUG: No .git folder found in:', currentDir)
     }
 
-    console.log('[findWorkspaces] Found workspaces:', workspaces)
+    // Look for git repos in immediate subdirectories
+    try {
+        const subdirs = fs.readdirSync(currentDir)
+        console.log('DEBUG: Found subdirs in', currentDir, ':', subdirs)
+        for (const subdir of subdirs) {
+            const fullPath = path.join(currentDir, subdir)
+            if (fs.statSync(fullPath).isDirectory() && fs.existsSync(path.join(fullPath, '.git'))) {
+                console.log('DEBUG: Found git repo in subdir:', fullPath)
+                if (!workspaces.includes(fullPath)) {
+                    console.log('DEBUG: Adding git repo workspace:', fullPath)
+                    workspaces.push(fullPath)
+                }
+            }
+        }
+    } catch (error) {
+        console.error('DEBUG: Error reading directory:', error)
+    }
+
+    console.log('DEBUG: Final workspaces list:', workspaces)
     return workspaces
 }
 
@@ -338,24 +388,32 @@ function extractAISection(dir: string): void {
 }
 
 function mergeAISection(dir: string): void {
+    console.log('DEBUG: mergeAISection called for dir:', dir)
     const gitignorePath: string = path.join(dir, '.gitignore')
     const aiGitignorePath: string = path.join(dir, 'ai.gitignore')
 
     if (!fs.existsSync(aiGitignorePath)) {
+        console.log('DEBUG: No ai.gitignore found at:', aiGitignorePath)
         return
     }
+    console.log('DEBUG: Found ai.gitignore at:', aiGitignorePath)
 
     const aiContent: string = fs.readFileSync(aiGitignorePath, 'utf8')
+    console.log('DEBUG: ai.gitignore content:', aiContent)
+    
     let gitignoreContent: string = fs.existsSync(gitignorePath) 
         ? fs.readFileSync(gitignorePath, 'utf8')
         : ''
+    console.log('DEBUG: Original .gitignore content:', gitignoreContent)
 
     // Remove any existing AI section
     const lines: string[] = gitignoreContent.split('\n')
     const startIndex: number = lines.indexOf(AI_SECTION_START)
     const endIndex: number = lines.indexOf(AI_SECTION_END)
+    console.log('DEBUG: AI section indices - start:', startIndex, 'end:', endIndex)
 
     if (startIndex !== -1 && endIndex !== -1) {
+        console.log('DEBUG: Removing existing AI section')
         gitignoreContent = [
             ...lines.slice(0, startIndex),
             ...lines.slice(endIndex + 1)
@@ -363,75 +421,130 @@ function mergeAISection(dir: string): void {
     }
 
     // Add new AI section
+    console.log('DEBUG: Adding new AI section')
     const newContent: string = `${gitignoreContent.trim()}\n\n${AI_SECTION_START}\n${aiContent}\n${AI_SECTION_END}\n`
+    console.log('DEBUG: New .gitignore content:', newContent)
     fs.writeFileSync(gitignorePath, newContent)
 
     // Remove ai.gitignore
+    console.log('DEBUG: Removing ai.gitignore file')
     fs.unlinkSync(aiGitignorePath)
 }
 
 function gitAdd(paths: string[]): void {
+    console.log('DEBUG: gitAdd called with paths:', paths)
     const repoRoot: string = execSync('git rev-parse --show-toplevel', { encoding: 'utf8' }).trim()
     const currentDir: string = process.cwd()
-    
-    // First, add .gitignore files to ensure they're tracked
-    for (const dir of findWorkspaces(currentDir)) {
-        const gitignorePath: string = path.join(dir, '.gitignore')
-        if (fs.existsSync(gitignorePath)) {
-            execSync(`git add "${gitignorePath}"`, {
-                cwd: repoRoot,
-                stdio: 'pipe'
-            })
-        }
-    }
+    console.log('DEBUG: repoRoot:', repoRoot, 'currentDir:', currentDir)
 
     // If in AI mode, we need to check patterns
     if (isAIModeEnabled(currentDir)) {
+        console.log('DEBUG: AI mode is enabled')
         // Get all untracked and modified files
-        const untrackedOutput: string = execSync(`git ls-files -o --exclude-standard`, {
+        const untrackedOutput: string = execSync('git ls-files -o --exclude-standard', {
             encoding: 'utf8',
             cwd: repoRoot
         });
         const untracked: string[] = untrackedOutput.split('\n').filter((f: string) => f);
+        console.log('DEBUG: Untracked files:', untracked)
 
         // Get list of modified files
-        const modifiedOutput: string = execSync(`git ls-files -m`, {
+        const modifiedOutput: string = execSync('git ls-files -m', {
             encoding: 'utf8',
             cwd: repoRoot
         });
         const modified: string[] = modifiedOutput.split('\n').filter((f: string) => f);
+        console.log('DEBUG: Modified files:', modified)
         
-        const allFiles: string[] = [...new Set([...untracked, ...modified])]
+        // If paths include directories (like '.'), expand them to all files
+        let allFiles: string[] = []
+        if (paths.length > 0) {
+            for (const p of paths) {
+                console.log('DEBUG: Processing path:', p)
+                if (p === '.' || p === './') {
+                    console.log('DEBUG: Path is ".", expanding to all files')
+                    allFiles = [...untracked, ...modified]
+                } else {
+                    // For other paths, check if they match any untracked/modified files
+                    console.log('DEBUG: Checking which files match path', p)
+                    const matchingFiles = [...untracked, ...modified].filter(file => {
+                        const startsWithPath = file.startsWith(p)
+                        const matchesPattern = minimatch(file, p)
+                        console.log('DEBUG: File', file, 'startsWith', p, '=', startsWithPath, 'matchesPattern =', matchesPattern)
+                        return startsWithPath || matchesPattern
+                    })
+                    console.log('DEBUG: Files matching path', p, ':', matchingFiles)
+                    allFiles.push(...matchingFiles)
+                }
+            }
+        } else {
+            console.log('DEBUG: No paths provided, using all files')
+            allFiles = [...untracked, ...modified]
+        }
+        console.log('DEBUG: All files to consider:', allFiles)
         
         // Get AI patterns from all workspaces
         const allPatterns: string[] = []
-        for (const dir of findWorkspaces(currentDir)) {
+        const workspaces = findWorkspaces(currentDir)
+        console.log('DEBUG: Found workspaces:', workspaces)
+        for (const dir of workspaces) {
             const aiGitignorePath: string = path.join(dir, 'ai.gitignore')
             if (fs.existsSync(aiGitignorePath)) {
+                console.log('DEBUG: Found ai.gitignore at:', aiGitignorePath)
                 const content: string = fs.readFileSync(aiGitignorePath, 'utf8');
-                const lines: string[] = content.split('\n').filter((line: string) => line.trim());
+                const lines: string[] = content.split('\n')
+                    .map(line => line.trim())
+                    .filter(line => line && !line.startsWith('#'));
+                console.log('DEBUG: Adding patterns from', aiGitignorePath, ':', lines)
                 allPatterns.push(...lines)
             }
         }
+        console.log('DEBUG: All AI patterns:', allPatterns)
         
-        // Filter out files that match AI patterns
+        // Filter out files that match AI patterns and ai.gitignore files themselves
         const filesToAdd: string[] = allFiles.filter((file: string) => {
-            return !allPatterns.some((pattern: string) => {
-                return minimatch(file, pattern, { matchBase: true });
-            });
-        })
+            if (file.endsWith('ai.gitignore')) {
+                console.log('DEBUG: Skipping ai.gitignore file:', file)
+                return false;
+            }
+            for (const pattern of allPatterns) {
+                const matches = minimatch(file, pattern, { matchBase: true })
+                if (matches) {
+                    console.log('DEBUG: File', file, 'matches AI pattern', pattern)
+                    return false;
+                }
+            }
+            console.log('DEBUG: File', file, 'does not match any AI patterns, will be added')
+            return true;
+        });
 
-        // Add files
-        if (filesToAdd.length > 0) {
-            const command: string = `git add ${filesToAdd.join(' ')}`;
-            execSync(command, { stdio: 'inherit' });
+        // Add files in batches to avoid command line length limits
+        const batchSize = 100;
+        for (let i = 0; i < filesToAdd.length; i += batchSize) {
+            const batch = filesToAdd.slice(i, i + batchSize);
+            if (batch.length > 0) {
+                console.log('DEBUG: Adding batch:', batch);
+                const command: string = `git add ${batch.map(f => `"${f}"`).join(' ')}`;
+                execSync(command, { 
+                    cwd: repoRoot,
+                    stdio: 'inherit' 
+                });
+            }
         }
     } else {
+        console.log('DEBUG: AI mode is disabled, doing normal git add')
         // Not in AI mode, just do normal git add
-        execSync(`git add ${paths.length ? paths.join(' ') : '.'}`, {
-            cwd: repoRoot,
-            stdio: 'pipe'
-        })
+        if (paths.length > 0) {
+            execSync(`git add ${paths.map(p => `"${p}"`).join(' ')}`, {
+                cwd: repoRoot,
+                stdio: 'pipe'
+            });
+        } else {
+            execSync('git add .', {
+                cwd: repoRoot,
+                stdio: 'pipe'
+            });
+        }
     }
 }
 
@@ -457,6 +570,42 @@ function isAIModeEnabled(dir: string): boolean {
     return fs.existsSync(path.join(dir, 'ai.gitignore'))
 }
 
+function resetAIFiles(repoPath: string): void {
+    const stagedOutput: string = execSync('git diff --cached --name-only', {
+        encoding: 'utf8',
+        cwd: repoPath
+    });
+    const staged: string[] = stagedOutput.split('\n').filter((f: string) => f);
+
+    // Get AI patterns from all workspaces
+    const allPatterns: string[] = []
+    for (const dir of findWorkspaces(repoPath)) {
+        const aiGitignorePath: string = path.join(dir, 'ai.gitignore')
+        if (fs.existsSync(aiGitignorePath)) {
+            const content: string = fs.readFileSync(aiGitignorePath, 'utf8');
+            const lines: string[] = content.split('\n')
+                .map(line => line.trim())
+                .filter(line => line && !line.startsWith('#'));
+            allPatterns.push(...lines)
+        }
+    }
+
+    // Find staged files that match AI patterns
+    const filesToUnstage: string[] = staged.filter((file: string) => {
+        return allPatterns.some((pattern: string) => {
+            return minimatch(file, pattern, { matchBase: true });
+        });
+    });
+
+    // Reset any staged files that match AI patterns
+    if (filesToUnstage.length > 0) {
+        execSync(`git reset HEAD ${filesToUnstage.join(' ')}`, {
+            cwd: repoPath,
+            stdio: ['pipe', 'pipe', 'pipe']
+        })
+    }
+}
+
 export {
     findWorkspaces,
     extractAISection,
@@ -465,5 +614,6 @@ export {
     isAIModeEnabled,
     withoutAIPatterns,
     setupGitignore,
-    exitAIMode
+    exitAIMode,
+    resetAIFiles
 }
